@@ -1,0 +1,17 @@
+[project]
+name = "to-do-list-project-phase-1"
+version = "0.1.0"
+description = "A CLI ToDo list app using Python OOP and in-memory storage"
+authors = [
+    {name = "Mehdi Gholami"}
+]
+readme = "README.md"
+requires-python = "^3.10"
+dependencies = [
+    "python-dotenv (>=1.1.1,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
