@@ -1,4 +1,3 @@
-# todo_app/core/project.py
 """
 Project entity that contains a collection of tasks.
 """
