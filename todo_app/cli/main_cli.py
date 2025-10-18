@@ -1,34 +1,246 @@
+# todo_app/cli/main_cli.py
 """
-Minimal CLI to interact with the To-Do app via services.
+Interactive CLI to manage Projects and Tasks (in-memory).
+- Covers user stories: create/edit/delete/list projects, add/edit/status/delete/list tasks
+- Validates inputs and prints clear English messages
 """
 
 from __future__ import annotations
+
 import sys
+from typing import Optional
 
 from todo_app.services import ProjectService, TaskService
 from todo_app.storage import InMemoryRepo
 
 
+# ---------- Helpers (generic I/O) ----------
+
 def prompt(msg: str) -> str:
+    """Read a line from stdin and strip whitespace."""
     return input(msg).strip()
 
 
-def choose_project_id(ps: ProjectService) -> str | None:
+def confirm(msg: str = "Are you sure? (Y/n): ") -> bool:
+    """Simple yes/no confirmation; default is yes."""
+    ans = prompt(msg).lower()
+    return ans in ("y", "yes", "")
+
+
+# ---------- Helpers (domain-oriented) ----------
+
+def choose_project(ps: ProjectService) -> Optional[str]:
+    """Let the user choose a project and return its id."""
     projects = ps.list_projects()
     if not projects:
         print("No projects found.")
         return None
+
     print("\nProjects:")
     for idx, p in enumerate(projects, start=1):
         print(f"{idx}. {p.name} ({p.id})")
-    raw = prompt("Choose project number: ")
-    try:
-        n = int(raw)
-        return projects[n - 1].id
-    except Exception:
-        print("Invalid choice.")
+
+    while True:
+        raw = prompt("Choose project number (or 'b' to go back): ")
+        if raw.lower() == "b":
+            return None
+        try:
+            n = int(raw)
+            if 1 <= n <= len(projects):
+                return projects[n - 1].id
+            print("Out of range. Try again.")
+        except ValueError:
+            print("Invalid number. Try again.")
+
+
+def choose_task(ts: TaskService, project_id: str) -> Optional[str]:
+    """Let the user choose a task of a project and return its id."""
+    tasks = ts.list_tasks_of_project(project_id)
+    if not tasks:
+        print("No tasks in this project.")
         return None
 
+    print("\nTasks:")
+    for idx, t in enumerate(tasks, start=1):
+        print(f"{idx}. {t.title} ({t.id}) [{t.status}] deadline={t.deadline}")
+
+    while True:
+        raw = prompt("Choose task number (or 'b' to go back): ")
+        if raw.lower() == "b":
+            return None
+        try:
+            n = int(raw)
+            if 1 <= n <= len(tasks):
+                return tasks[n - 1].id
+            print("Out of range. Try again.")
+        except ValueError:
+            print("Invalid number. Try again.")
+
+
+def ask_status(default: str = "todo") -> Optional[str]:
+    """Ask for a status; returns one of todo/doing/done or None if user cancels."""
+    while True:
+        raw = prompt(f"Task status (todo/doing/done) [default {default}, 'b' to back]: ") or default
+        if raw.lower() == "b":
+            return None
+        if raw in {"todo", "doing", "done"}:
+            return raw
+        print("Invalid status. Allowed: todo/doing/done")
+
+
+def ask_deadline() -> Optional[str]:
+    """
+    Ask for deadline string; returns None for blank.
+    Service/entity will do strict validation (YYYY-MM-DD).
+    """
+    raw = prompt("Deadline (YYYY-MM-DD) [blank for none]: ")
+    return raw or None
+
+
+# ---------- Actions ----------
+
+def action_create_project(ps: ProjectService) -> None:
+    name = prompt("Project name: ")
+    desc = prompt("Project description: ")
+    try:
+        p = ps.create_project(name=name, description=desc)
+        print(f"Project created: {p.name} ({p.id})")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_edit_project(ps: ProjectService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    new_name = prompt("New name (blank to skip): ")
+    new_desc = prompt("New description (blank to skip): ")
+    try:
+        p = ps.edit_project(pid, new_name=new_name or None, new_description=new_desc or None)
+        print(f"Project updated: {p.name} ({p.id})")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_delete_project(ps: ProjectService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    if not confirm("Delete this project and cascade tasks? (Y/n): "):
+        print("Cancelled.")
+        return
+    try:
+        ps.delete_project(pid)
+        print("Project deleted (cascaded tasks removed).")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_list_projects(ps: ProjectService) -> None:
+    projects = ps.list_projects()
+    if not projects:
+        print("No projects available.")
+        return
+    print("\nProjects (sorted by creation time):")
+    for p in projects:
+        print(f"- {p.id} | {p.name} | {p.description} | tasks={len(p.tasks)}")
+
+
+def action_add_task(ps: ProjectService, ts: TaskService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    title = prompt("Task title: ")
+    desc = prompt("Task description: ")
+    status = ask_status(default="todo")
+    if status is None:  # user backed out
+        print("Cancelled.")
+        return
+    deadline = ask_deadline()
+
+    try:
+        t = ts.add_task(project_id=pid, title=title, description=desc, status=status, deadline_str=deadline)
+        print(f"Task created: {t.title} ({t.id})")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_edit_task(ps: ProjectService, ts: TaskService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    tid = choose_task(ts, pid)
+    if not tid:
+        return
+
+    new_title = prompt("New title (blank to skip): ")
+    new_desc = prompt("New description (blank to skip): ")
+    raw_status = prompt("New status todo/doing/done (blank to skip): ").strip().lower()
+    new_status = raw_status or None
+    new_deadline = prompt("New deadline YYYY-MM-DD (blank to skip): ").strip() or None
+
+    try:
+        t2 = ts.edit_task(
+            tid,
+            title=(new_title or None),
+            description=(new_desc or None),
+            status=new_status,
+            deadline_str=new_deadline,
+        )
+        print(f"Task updated: {t2.title} ({t2.id}) [{t2.status}] deadline={t2.deadline}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_change_task_status(ps: ProjectService, ts: TaskService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    tid = choose_task(ts, pid)
+    if not tid:
+        return
+    new_status = ask_status()
+    if new_status is None:
+        print("Cancelled.")
+        return
+    try:
+        t2 = ts.change_status(tid, new_status)
+        print(f"Status updated: {t2.title} -> {t2.status}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_delete_task(ps: ProjectService, ts: TaskService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    tid = choose_task(ts, pid)
+    if not tid:
+        return
+    if not confirm("Delete this task? (Y/n): "):
+        print("Cancelled.")
+        return
+    try:
+        ts.delete_task(tid)
+        print("Task deleted.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def action_list_tasks_of_project(ps: ProjectService, ts: TaskService) -> None:
+    pid = choose_project(ps)
+    if not pid:
+        return
+    tasks = ts.list_tasks_of_project(pid)
+    if not tasks:
+        print("No tasks in this project.")
+        return
+    print("\nTasks:")
+    for t in tasks:
+        print(f"- {t.id} | {t.title} | {t.status} | deadline={t.deadline}")
+
+
+# ---------- Main Loop ----------
 
 def run_cli() -> None:
     repo = InMemoryRepo()
@@ -48,166 +260,28 @@ def run_cli() -> None:
 9) List tasks of a project
 0) Exit
 """
+    actions = {
+        "1": lambda: action_create_project(ps),
+        "2": lambda: action_edit_project(ps),
+        "3": lambda: action_delete_project(ps),
+        "4": lambda: action_list_projects(ps),
+        "5": lambda: action_add_task(ps, ts),
+        "6": lambda: action_edit_task(ps, ts),
+        "7": lambda: action_change_task_status(ps, ts),
+        "8": lambda: action_delete_task(ps, ts),
+        "9": lambda: action_list_tasks_of_project(ps, ts),
+    }
+
     while True:
         print(MENU)
         choice = prompt("Choose: ")
-
-        # Exit
         if choice == "0":
-            sys.exit("Bye!")
+            print("Bye!")
+            sys.exit(0)
 
-        # Create Project
-        elif choice == "1":
-            name = prompt("Project name: ")
-            desc = prompt("Project description: ")
-            try:
-                p = ps.create_project(name=name, description=desc)
-                print(f"Project created: {p.name} ({p.id})")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # Edit Project
-        elif choice == "2":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            new_name = prompt("New name (blank to skip): ")
-            new_desc = prompt("New description (blank to skip): ")
-            try:
-                p = ps.edit_project(pid,
-                                    new_name=new_name or None,
-                                    new_description=new_desc or None)
-                print(f"Project updated: {p.name} ({p.id})")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # Delete Project (cascade)
-        elif choice == "3":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            try:
-                ps.delete_project(pid)
-                print("Project deleted (and related tasks cascaded).")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # List Projects
-        elif choice == "4":
-            projects = ps.list_projects()
-            if not projects:
-                print("No projects available.")
-            else:
-                for p in projects:
-                    print(f"- {p.id} | {p.name} | {p.description} | tasks={len(p.tasks)}")
-
-        # Add Task
-        elif choice == "5":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            title = prompt("Task title: ")
-            desc = prompt("Task description: ")
-            status = prompt("Task status (todo/doing/done) [default todo]: ") or "todo"
-            deadline = prompt("Deadline (YYYY-MM-DD) [blank for none]: ") or None
-            try:
-                t = ts.add_task(project_id=pid, title=title, description=desc,
-                                status=status, deadline_str=deadline)
-                print(f"Task created: {t.title} ({t.id})")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # Edit Task
-        elif choice == "6":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            tasks = ts.list_tasks_of_project(pid)
-            if not tasks:
-                print("No tasks in this project.")
-                continue
-            for idx, t in enumerate(tasks, start=1):
-                print(f"{idx}. {t.title} ({t.id}) [{t.status}] deadline={t.deadline}")
-            raw = prompt("Choose task number: ")
-            try:
-                t = tasks[int(raw) - 1]
-            except Exception:
-                print("Invalid choice.")
-                continue
-
-            new_title = prompt("New title (blank to skip): ")
-            new_desc = prompt("New description (blank to skip): ")
-            new_status = prompt("New status todo/doing/done (blank to skip): ")
-            new_deadline = prompt("New deadline YYYY-MM-DD (blank to skip): ")
-            try:
-                t2 = ts.edit_task(
-                    t.id,
-                    title=(new_title or None),
-                    description=(new_desc or None),
-                    status=(new_status or None),
-                    deadline_str=(new_deadline or None),
-                )
-                print(f"Task updated: {t2.title} ({t2.id}) [{t2.status}]")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # Change Task Status
-        elif choice == "7":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            tasks = ts.list_tasks_of_project(pid)
-            if not tasks:
-                print("No tasks in this project.")
-                continue
-            for idx, t in enumerate(tasks, start=1):
-                print(f"{idx}. {t.title} ({t.id}) [{t.status}]")
-            raw = prompt("Choose task number: ")
-            try:
-                t = tasks[int(raw) - 1]
-            except Exception:
-                print("Invalid choice.")
-                continue
-            new_status = prompt("New status (todo/doing/done): ")
-            try:
-                t2 = ts.change_status(t.id, new_status)
-                print(f"Status updated: {t2.title} -> {t2.status}")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # Delete Task
-        elif choice == "8":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            tasks = ts.list_tasks_of_project(pid)
-            if not tasks:
-                print("No tasks in this project.")
-                continue
-            for idx, t in enumerate(tasks, start=1):
-                print(f"{idx}. {t.title} ({t.id})")
-            raw = prompt("Choose task number: ")
-            try:
-                t = tasks[int(raw) - 1]
-            except Exception:
-                print("Invalid choice.")
-                continue
-            try:
-                ts.delete_task(t.id)
-                print("Task deleted.")
-            except Exception as e:
-                print(f"Error: {e}")
-
-        # List Tasks of a Project
-        elif choice == "9":
-            pid = choose_project_id(ps)
-            if not pid:
-                continue
-            tasks = ts.list_tasks_of_project(pid)
-            if not tasks:
-                print("No tasks in this project.")
-            else:
-                for t in tasks:
-                    print(f"- {t.id} | {t.title} | {t.status} | deadline={t.deadline}")
-        else:
+        action = actions.get(choice)
+        if not action:
             print("Invalid option. Try again.")
+            continue
+
+        action()  # run selected action
