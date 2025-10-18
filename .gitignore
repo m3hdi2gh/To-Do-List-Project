@@ -13,9 +13,6 @@ __pycache__/
 .idea/
 .vscode/
 
-# Poetry
-poetry.lock
-
 # System
 .DS_Store
 Thumbs.db
