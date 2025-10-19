@@ -1,0 +1,49 @@
+"""
+TaskService orchestrates task operations and enforces caps and validation.
+"""
+
+from __future__ import annotations
+from typing import List, Optional
+
+from todo_app.config import settings
+from todo_app.core import Task, parse_deadline
+from todo_app.storage import InMemoryRepo
+
+
+class TaskService:
+    def __init__(self, repo: InMemoryRepo) -> None:
+        self.repo = repo
+
+    def add_task(self, *, project_id: str, title: str, description: str = "",
+                 status: str = "todo", deadline_str: Optional[str] = None) -> Task:
+        # Enforce cap over all tasks
+        total_tasks = sum(len(p.tasks) for p in self.repo.list_projects())
+        if total_tasks >= settings.MAX_NUMBER_OF_TASK:
+            raise ValueError(f"Task cap exceeded ({settings.MAX_NUMBER_OF_TASK}).")
+
+        proj = self.repo.get_project_by_id(project_id)
+        if not proj:
+            raise ValueError("Project not found.")
+
+        task = Task(
+            title=title,
+            description=description,
+            status=status,
+            deadline=parse_deadline(deadline_str),
+        )
+        self.repo.add_task(proj, task)
+        return task
+
+    def change_status(self, task_id: str, new_status: str) -> Task:
+        return self.repo.change_task_status(task_id, new_status)
+
+    def edit_task(self, task_id: str, **kwargs) -> Task:
+        return self.repo.update_task(task_id, **kwargs)
+
+    def delete_task(self, task_id: str) -> None:
+        ok = self.repo.delete_task(task_id)
+        if not ok:
+            raise ValueError("Task not found.")
+
+    def list_tasks_of_project(self, project_id: str) -> List[Task]:
+        return self.repo.list_tasks_of_project(project_id)
