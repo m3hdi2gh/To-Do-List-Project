@@ -6,8 +6,8 @@ from __future__ import annotations
 from typing import List, Optional
 
 from todo_app.config import settings
-from todo_app.core import Task, parse_deadline
-from todo_app.storage import InMemoryRepo
+from todo_app.models import Task, parse_deadline
+from todo_app.repositories import InMemoryRepo
 
 
 class TaskService:
