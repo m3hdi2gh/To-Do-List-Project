@@ -5,7 +5,7 @@ Simple in-memory repository for Projects and Tasks.
 from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
-from todo_app.core import Project, Task
+from todo_app.models import Project, Task
 
 
 class InMemoryRepo:

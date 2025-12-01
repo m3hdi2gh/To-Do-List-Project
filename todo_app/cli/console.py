@@ -1,4 +1,4 @@
-# todo_app/cli/main_cli.py
+# todo_app/cli/console.py
 """
 Interactive CLI to manage Projects and Tasks (in-memory).
 - Covers user stories: create/edit/delete/list projects, add/edit/status/delete/list tasks
@@ -11,7 +11,7 @@ import sys
 from typing import Optional
 
 from todo_app.services import ProjectService, TaskService
-from todo_app.storage import InMemoryRepo
+from todo_app.repositories import InMemoryRepo
 
 
 # ---------- Helpers (generic I/O) ----------

@@ -6,8 +6,8 @@ from __future__ import annotations
 from typing import List, Optional
 
 from todo_app.config import settings
-from todo_app.core import Project
-from todo_app.storage import InMemoryRepo
+from todo_app.models import Project
+from todo_app.repositories import InMemoryRepo
 
 
 class ProjectService:
