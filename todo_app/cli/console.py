@@ -245,7 +245,7 @@ def action_list_tasks_of_project(ps: ProjectService, ts: TaskService) -> None:
 def run_cli() -> None:
     repo = InMemoryRepo()
     ps = ProjectService(repo)
-    ts = TaskService(repo)
+    ts = TaskService(project_repo=repo, task_repo=repo)
 
     MENU = """
 ==== To-Do CLI ====

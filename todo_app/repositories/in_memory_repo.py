@@ -1,14 +1,11 @@
-"""
-Simple in-memory repository for Projects and Tasks.
-"""
-
 from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 from todo_app.models import Project, Task
+from todo_app.repositories.project_repository import ProjectRepository
+from todo_app.repositories.task_repository import TaskRepository
 
-
-class InMemoryRepo:
+class InMemoryRepo(ProjectRepository, TaskRepository):
     def __init__(self) -> None:
         # Projects
         self._projects_by_id: Dict[str, Project] = {}
