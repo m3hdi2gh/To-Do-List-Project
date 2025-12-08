@@ -30,8 +30,8 @@ class TaskStatusEnum(str, enum.Enum):
 class ProjectORM(Base):
     __tablename__ = "projects"
 
-    # PK should be simple and integer (for DB)
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    # PK: Used as str(UUID) in the domain, so we store it as String in the DB
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
     # Project name must be unique (as per doc)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
@@ -56,10 +56,12 @@ class ProjectORM(Base):
 class TaskORM(Base):
     __tablename__ = "tasks"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    # PK: Same as in the domain, used as str(UUID)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
 
-    # FK to project
-    project_id: Mapped[int] = mapped_column(
+    # FK to project (corresponding to ProjectORM.id type)
+    project_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -73,6 +75,7 @@ class TaskORM(Base):
         nullable=False,
     )
 
+    # In the domain, deadline is of type date, so we store it as Date here
     deadline: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(

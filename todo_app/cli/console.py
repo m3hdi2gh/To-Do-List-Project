@@ -1,17 +1,15 @@
-# todo_app/cli/console.py
-"""
-Interactive CLI to manage Projects and Tasks (in-memory).
-- Covers user stories: create/edit/delete/list projects, add/edit/status/delete/list tasks
-- Validates inputs and prints clear English messages
-"""
-
 from __future__ import annotations
 
 import sys
 from typing import Optional
 
 from todo_app.services import ProjectService, TaskService
-from todo_app.repositories import InMemoryRepo
+from todo_app.repositories import (
+    InMemoryRepo,
+    SqlAlchemyProjectRepository,
+    SqlAlchemyTaskRepository,
+)
+from todo_app.db.session import SessionLocal
 
 
 # ---------- Helpers (generic I/O) ----------
@@ -243,9 +241,13 @@ def action_list_tasks_of_project(ps: ProjectService, ts: TaskService) -> None:
 # ---------- Main Loop ----------
 
 def run_cli() -> None:
-    repo = InMemoryRepo()
-    ps = ProjectService(repo)
-    ts = TaskService(project_repo=repo, task_repo=repo)
+    session = SessionLocal()
+
+    project_repo = SqlAlchemyProjectRepository(session)
+    task_repo = SqlAlchemyTaskRepository(session)
+
+    ps = ProjectService(project_repo)
+    ts = TaskService(project_repo=project_repo, task_repo=task_repo)
 
     MENU = """
 ==== To-Do CLI ====
@@ -272,16 +274,19 @@ def run_cli() -> None:
         "9": lambda: action_list_tasks_of_project(ps, ts),
     }
 
-    while True:
-        print(MENU)
-        choice = prompt("Choose: ")
-        if choice == "0":
-            print("Bye!")
-            sys.exit(0)
+    try:
+        while True:
+            print(MENU)
+            choice = prompt("Choose: ")
+            if choice == "0":
+                print("Bye!")
+                sys.exit(0)
 
-        action = actions.get(choice)
-        if not action:
-            print("Invalid option. Try again.")
-            continue
+            action = actions.get(choice)
+            if not action:
+                print("Invalid option. Try again.")
+                continue
 
-        action()  # run selected action
+            action()
+    finally:
+        session.close()
