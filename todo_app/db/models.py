@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+from datetime import datetime, date, UTC
+from typing import Optional, List
+
+import enum
+from sqlalchemy import (
+    String,
+    Text,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
+
+from todo_app.db.base import Base
+
+
+class TaskStatusEnum(str, enum.Enum):
+    TODO = "todo"
+    DOING = "doing"
+    DONE = "done"
+
+
+class ProjectORM(Base):
+    __tablename__ = "projects"
+
+    # PK: Used as str(UUID) in the domain, so we store it as String in the DB
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+    # Project name must be unique (as per doc)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+
+    # Description can be empty
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    # One-to-many relationship with Task
+    tasks: Mapped[List["TaskORM"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class TaskORM(Base):
+    __tablename__ = "tasks"
+
+    # PK: Same as in the domain, used as str(UUID)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+    # FK to project (corresponding to ProjectORM.id type)
+    project_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    status: Mapped[TaskStatusEnum] = mapped_column(
+        Enum(
+            TaskStatusEnum,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+            name="taskstatusenum",
+        ),
+        default=TaskStatusEnum.TODO,
+        nullable=False,
+    )
+
+    # In the domain, deadline is of type date, so we store it as Date here
+    deadline: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    closed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # Reverse relationship: each task is connected to a project
+    project: Mapped["ProjectORM"] = relationship(
+        back_populates="tasks",
+    )

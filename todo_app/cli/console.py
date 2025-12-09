@@ -1,17 +1,14 @@
-# todo_app/cli/main_cli.py
-"""
-Interactive CLI to manage Projects and Tasks (in-memory).
-- Covers user stories: create/edit/delete/list projects, add/edit/status/delete/list tasks
-- Validates inputs and prints clear English messages
-"""
-
 from __future__ import annotations
 
 import sys
-from typing import Optional
-
+from typing import Optional, cast
+from todo_app.models import TaskStatus
 from todo_app.services import ProjectService, TaskService
-from todo_app.storage import InMemoryRepo
+from todo_app.repositories import (
+    SqlAlchemyProjectRepository,
+    SqlAlchemyTaskRepository,
+)
+from todo_app.db.session import SessionLocal
 
 
 # ---------- Helpers (generic I/O) ----------
@@ -77,14 +74,17 @@ def choose_task(ts: TaskService, project_id: str) -> Optional[str]:
             print("Invalid number. Try again.")
 
 
-def ask_status(default: str = "todo") -> Optional[str]:
-    """Ask for a status; returns one of todo/doing/done or None if user cancels."""
+def ask_status(default: TaskStatus = "todo") -> Optional[TaskStatus]:
+    """
+    Ask for a status; returns one of todo/ doing/done or None if user cancels.
+    """
     while True:
         raw = prompt(f"Task status (todo/doing/done) [default {default}, 'b' to back]: ") or default
         if raw.lower() == "b":
             return None
         if raw in {"todo", "doing", "done"}:
-            return raw
+            # Help the type checker: raw is guaranteed to be a valid TaskStatus here
+            return cast(TaskStatus, raw)
         print("Invalid status. Allowed: todo/doing/done")
 
 
@@ -243,9 +243,13 @@ def action_list_tasks_of_project(ps: ProjectService, ts: TaskService) -> None:
 # ---------- Main Loop ----------
 
 def run_cli() -> None:
-    repo = InMemoryRepo()
-    ps = ProjectService(repo)
-    ts = TaskService(repo)
+    session = SessionLocal()
+
+    project_repo = SqlAlchemyProjectRepository(session)
+    task_repo = SqlAlchemyTaskRepository(session)
+
+    ps = ProjectService(project_repo)
+    ts = TaskService(project_repo=project_repo, task_repo=task_repo)
 
     MENU = """
 ==== To-Do CLI ====
@@ -272,16 +276,19 @@ def run_cli() -> None:
         "9": lambda: action_list_tasks_of_project(ps, ts),
     }
 
-    while True:
-        print(MENU)
-        choice = prompt("Choose: ")
-        if choice == "0":
-            print("Bye!")
-            sys.exit(0)
+    try:
+        while True:
+            print(MENU)
+            choice = prompt("Choose: ")
+            if choice == "0":
+                print("Bye!")
+                sys.exit(0)
 
-        action = actions.get(choice)
-        if not action:
-            print("Invalid option. Try again.")
-            continue
+            action = actions.get(choice)
+            if not action:
+                print("Invalid option. Try again.")
+                continue
 
-        action()  # run selected action
+            action()
+    finally:
+        session.close()

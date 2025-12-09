@@ -1,1 +1,1 @@
-from .main_cli import run_cli
+from .console import run_cli

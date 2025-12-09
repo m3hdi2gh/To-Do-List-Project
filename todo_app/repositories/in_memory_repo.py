@@ -1,14 +1,11 @@
-"""
-Simple in-memory repository for Projects and Tasks.
-"""
-
 from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
-from todo_app.core import Project, Task
+from todo_app.models import Project, Task, TaskStatus
+from todo_app.repositories.project_repository import ProjectRepository
+from todo_app.repositories.task_repository import TaskRepository
 
-
-class InMemoryRepo:
+class InMemoryRepo(ProjectRepository, TaskRepository):
     def __init__(self) -> None:
         # Projects
         self._projects_by_id: Dict[str, Project] = {}
@@ -84,11 +81,11 @@ class InMemoryRepo:
         )
         return task
 
-    def change_task_status(self, task_id: str, new_status: str) -> Task:
+    def change_task_status(self, task_id: str, new_status: TaskStatus) -> Task:
         task = self.get_task(task_id)
         if not task:
             raise ValueError("Task not found.")
-        task.change_status(new_status)  # validation on entity
+        task.change_status(new_status)
         return task
 
     def delete_task(self, task_id: str) -> bool:
