@@ -19,12 +19,11 @@ def main() -> None:
     """
     Run the scheduler loop.
 
-    For development we use a short interval (e.g. every 1 minute).
-    In real deployment you might change it to every().hour / day / ...
+    For development we use a short interval.
     """
-    # every 1 minute for development/testing
-    schedule.every(1).minutes.do(run_autoclose_job)
-    print("[scheduler] Started. Running autoclose job every 1 minute. Press Ctrl+C to stop.")
+    # every 15 seconds for demo/presentation
+    schedule.every(15).seconds.do(run_autoclose_job)
+    print("[scheduler] Started. Running autoclose job every 15 seconds. Press Ctrl+C to stop.")
 
     while True:
         schedule.run_pending()

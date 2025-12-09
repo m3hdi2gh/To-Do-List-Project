@@ -1,7 +1,7 @@
 [project]
 name = "to-do-list-project-phase-1"
 version = "0.1.0"
-description = "A CLI ToDo list app using Python OOP and in-memory storage"
+description = "A CLI ToDo list app with Python OOP, PostgreSQL via SQLAlchemy, Alembic migrations, and scheduled background commands"
 authors = [
     {name = "Mehdi Gholami"}
 ]

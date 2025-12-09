@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from todo_app.models import Project, Task
-from todo_app.db.models import ProjectORM, TaskORM
+from todo_app.models import Project, Task, TaskStatus
+from todo_app.db.models import ProjectORM, TaskORM, TaskStatusEnum
 
 
 class TaskRepository(ABC):
@@ -32,7 +32,7 @@ class TaskRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def change_task_status(self, task_id: str, new_status: str) -> Task:
+    def change_task_status(self, task_id: str, new_status: TaskStatus) -> Task:
         """Change status of a task."""
         raise NotImplementedError
 
@@ -43,7 +43,10 @@ class TaskRepository(ABC):
 # -------- Helper mappers --------
 
 def _task_from_orm(orm: TaskORM) -> Task:
-    status_str = orm.status.value if hasattr(orm.status, "value") else str(orm.status)
+    status_str = cast(
+        TaskStatus,
+        orm.status.value if hasattr(orm.status, "value") else str(orm.status),
+    )
     t = Task(
         title=orm.title,
         description=orm.description or "",
@@ -71,7 +74,7 @@ class SqlAlchemyTaskRepository(TaskRepository):
             id=task.id,  # type: ignore[attr-defined]
             title=task.title,
             description=task.description,
-            status=task.status,
+            status=TaskStatusEnum(task.status),
             deadline=task.deadline,
             project_id=proj_orm.id,
             created_at=task.created_at,  # type: ignore[attr-defined]
@@ -105,7 +108,7 @@ class SqlAlchemyTaskRepository(TaskRepository):
         if description is not None:
             orm.description = description
         if status is not None:
-            orm.status = status
+            orm.status = TaskStatusEnum(status)
         if deadline_str is not None:
             # You can use parse_deadline here again if desired
             from todo_app.models import parse_deadline  # local import to avoid circular dependency
@@ -119,7 +122,7 @@ class SqlAlchemyTaskRepository(TaskRepository):
         orm = self._session.get(TaskORM, task_id)
         if orm is None:
             raise ValueError("Task not found.")
-        orm.status = new_status
+        orm.status = TaskStatusEnum(new_status)
         self._session.commit()
         self._session.refresh(orm)
         return _task_from_orm(orm)

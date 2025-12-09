@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from todo_app.config import settings
-from todo_app.models import Task, parse_deadline
+from todo_app.models import Task, parse_deadline, TaskStatus
 from todo_app.repositories.project_repository import ProjectRepository
 from todo_app.repositories.task_repository import TaskRepository
 
@@ -18,7 +18,7 @@ class TaskService:
             project_id: str,
             title: str,
             description: str = "",
-            status: str = "todo",
+            status: TaskStatus = "todo",
             deadline_str: Optional[str] = None,
     ) -> Task:
         # Enforce cap over all tasks
@@ -39,7 +39,7 @@ class TaskService:
         self._task_repo.add_task(proj, task)
         return task
 
-    def change_status(self, task_id: str, new_status: str) -> Task:
+    def change_status(self, task_id: str, new_status: TaskStatus) -> Task:
         return self._task_repo.change_task_status(task_id, new_status)
 
     def edit_task(self, task_id: str, **kwargs) -> Task:

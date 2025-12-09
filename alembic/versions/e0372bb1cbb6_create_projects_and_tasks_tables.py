@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column(
             "status",
-            sa.Enum("TODO", "DOING", "DONE", name="taskstatusenum"),
+            sa.Enum("todo", "doing", "done", name="taskstatusenum"),
             nullable=False,
         ),
         sa.Column("deadline", sa.Date(), nullable=True),

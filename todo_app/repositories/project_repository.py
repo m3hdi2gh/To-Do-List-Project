@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from todo_app.models import Project, Task
+from todo_app.models import Project, Task, TaskStatus
 from todo_app.db.models import ProjectORM
 
 
@@ -71,10 +71,9 @@ def _project_from_orm(orm: ProjectORM) -> Project:
     # we just populate it here.
     # If desired, you can call proj.tasks.clear() beforehand.
     for torm in orm.tasks:
-        status_str = (
-            torm.status.value
-            if hasattr(torm.status, "value")
-            else str(torm.status)
+        status_str = cast(
+            TaskStatus,
+            torm.status.value if hasattr(torm.status, "value") else str(torm.status),
         )
 
         task = Task(

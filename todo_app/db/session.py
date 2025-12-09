@@ -14,7 +14,7 @@ engine = create_engine(
 )
 
 
-# Session factory: We use this wherever we need a Sessiontodo_app/db/session.pyUnresolved reference 'create_engine'
+# Session factory: we use this wherever we need a database Session
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,

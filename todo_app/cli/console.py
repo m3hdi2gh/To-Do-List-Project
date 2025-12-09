@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
-
+from typing import Optional, cast
+from todo_app.models import TaskStatus
 from todo_app.services import ProjectService, TaskService
 from todo_app.repositories import (
-    InMemoryRepo,
     SqlAlchemyProjectRepository,
     SqlAlchemyTaskRepository,
 )
@@ -75,14 +74,17 @@ def choose_task(ts: TaskService, project_id: str) -> Optional[str]:
             print("Invalid number. Try again.")
 
 
-def ask_status(default: str = "todo") -> Optional[str]:
-    """Ask for a status; returns one of todo/doing/done or None if user cancels."""
+def ask_status(default: TaskStatus = "todo") -> Optional[TaskStatus]:
+    """
+    Ask for a status; returns one of todo/ doing/done or None if user cancels.
+    """
     while True:
         raw = prompt(f"Task status (todo/doing/done) [default {default}, 'b' to back]: ") or default
         if raw.lower() == "b":
             return None
         if raw in {"todo", "doing", "done"}:
-            return raw
+            # Help the type checker: raw is guaranteed to be a valid TaskStatus here
+            return cast(TaskStatus, raw)
         print("Invalid status. Allowed: todo/doing/done")
 
 

@@ -70,7 +70,11 @@ class TaskORM(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     status: Mapped[TaskStatusEnum] = mapped_column(
-        Enum(TaskStatusEnum),
+        Enum(
+            TaskStatusEnum,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+            name="taskstatusenum",
+        ),
         default=TaskStatusEnum.TODO,
         nullable=False,
     )
