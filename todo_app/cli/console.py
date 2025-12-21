@@ -1,3 +1,18 @@
+"""
+Interactive CLI for ToDoList application.
+
+.. deprecated::
+    This CLI module is deprecated as of Phase 3.
+    All functionality is now available through the FastAPI Web API.
+
+    Migration guide:
+        - Run API: uvicorn todo_app.api.main:app --reload
+        - Swagger UI: http://localhost:8000/docs
+        - ReDoc: http://localhost:8000/redoc
+
+    The CLI will be removed in a future release.
+"""
+
 from __future__ import annotations
 
 import sys
@@ -243,6 +258,17 @@ def action_list_tasks_of_project(ps: ProjectService, ts: TaskService) -> None:
 # ---------- Main Loop ----------
 
 def run_cli() -> None:
+    # === Deprecation Warning ===
+    print("\n" + "=" * 60)
+    print("⚠️  WARNING: CLI is deprecated!")
+    print("=" * 60)
+    print("This CLI interface will be removed in future versions.")
+    print("Please use the new Web API instead:")
+    print("  → Run: uvicorn todo_app.api.main:app --reload")
+    print("  → Docs: http://localhost:8000/docs")
+    print("=" * 60 + "\n")
+    # === End Deprecation Warning ===
+
     session = SessionLocal()
 
     project_repo = SqlAlchemyProjectRepository(session)
