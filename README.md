@@ -8,12 +8,14 @@ A **To-Do List application** built with:
 - **Alembic** for database migrations
 - **FastAPI** RESTful Web API
 - A simple **scheduler** to auto-close overdue tasks
+- **Postman collection & environment** for API testing (Phase 4)
 
-This project is developed incrementally in three phases:
+This project is developed incrementally in four phases:
 
 - **Phase 1** → Pure CLI + in-memory storage  
 - **Phase 2** → Persistence layer with PostgreSQL, SQLAlchemy ORM, Alembic, and background scheduling
-- **Phase 3 (current)** → RESTful Web API with FastAPI
+- **Phase 3** → RESTful Web API with FastAPI
+- **Phase 4 (current)** → Postman workspace/collection for testing and demo
 
 ---
 
@@ -25,6 +27,21 @@ This project is developed incrementally in three phases:
 - Pydantic request/response validation
 - Dependency injection for services and database sessions
 - Proper HTTP status codes and error handling
+
+### 🧪 Postman Testing (Phase 4)
+- A complete **Postman Collection** and **Environment** are provided under `postman/`
+- Collection contains requests for:
+  - Health check
+  - Project CRUD
+  - Task CRUD (under a project)
+  - Patch task status
+- Uses environment variables:
+  - `{{base_url}}`, `{{project_id}}`, `{{task_id}}`
+- Designed for a clean demo scenario:
+  1) Create Project → saves `project_id`
+  2) Create Task → saves `task_id`
+  3) List/Get/Update/Patch/Delete Task
+  4) Delete Project
 
 ### 🧩 Project Management
 - Create new projects with name and description  
@@ -69,68 +86,78 @@ This project is developed incrementally in three phases:
 ### Running the API Server
 ```bash
 poetry run uvicorn todo_app.api.main:app --reload
-```
+````
 
 The API will be available at: `http://127.0.0.1:8000`
 
 ### Interactive Documentation
 
-- **Swagger UI**: http://127.0.0.1:8000/docs
-- **ReDoc**: http://127.0.0.1:8000/redoc
+* **Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+* **ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ### API Endpoints
 
 #### Health Check
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | API health status |
+
+| Method | Endpoint | Description       |
+| ------ | -------- | ----------------- |
+| GET    | `/`      | API health status |
 
 #### Projects
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects` | List all projects |
-| POST | `/projects` | Create a new project |
-| GET | `/projects/{project_id}` | Get a project by ID |
-| PUT | `/projects/{project_id}` | Update a project |
-| DELETE | `/projects/{project_id}` | Delete a project |
+
+| Method | Endpoint                 | Description          |
+| ------ | ------------------------ | -------------------- |
+| GET    | `/projects`              | List all projects    |
+| POST   | `/projects`              | Create a new project |
+| GET    | `/projects/{project_id}` | Get a project by ID  |
+| PUT    | `/projects/{project_id}` | Update a project     |
+| DELETE | `/projects/{project_id}` | Delete a project     |
 
 #### Tasks
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects/{project_id}/tasks` | List all tasks in a project |
-| POST | `/projects/{project_id}/tasks` | Create a new task |
-| GET | `/projects/{project_id}/tasks/{task_id}` | Get a task by ID |
-| PUT | `/projects/{project_id}/tasks/{task_id}` | Update a task |
-| PATCH | `/projects/{project_id}/tasks/{task_id}/status` | Update task status only |
-| DELETE | `/projects/{project_id}/tasks/{task_id}` | Delete a task |
 
-### API Usage Examples
+| Method | Endpoint                                        | Description                 |
+| ------ | ----------------------------------------------- | --------------------------- |
+| GET    | `/projects/{project_id}/tasks`                  | List all tasks in a project |
+| POST   | `/projects/{project_id}/tasks`                  | Create a new task           |
+| GET    | `/projects/{project_id}/tasks/{task_id}`        | Get a task by ID            |
+| PUT    | `/projects/{project_id}/tasks/{task_id}`        | Update a task               |
+| PATCH  | `/projects/{project_id}/tasks/{task_id}/status` | Update task status only     |
+| DELETE | `/projects/{project_id}/tasks/{task_id}`        | Delete a task               |
 
-#### Create a Project
-```bash
-curl -X POST http://127.0.0.1:8000/projects \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Project", "description": "Project description"}'
+---
+
+## 📬 Postman (Phase 4)
+
+### Files
+
+Postman artifacts are located in:
+
+```text
+postman/
+  ├── postman_collection.json
+  └── postman_environment.json
 ```
 
-#### List Projects
-```bash
-curl http://127.0.0.1:8000/projects
-```
+### Import in Postman
 
-#### Create a Task
-```bash
-curl -X POST http://127.0.0.1:8000/projects/{project_id}/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My Task", "description": "Task description", "status": "todo", "deadline": "2025-12-31"}'
-```
+1. Open Postman → **Import**
+2. Import `postman/postman_collection.json`
+3. Import `postman/postman_environment.json`
+4. Select the environment (top-right) and set:
 
-#### Update Task Status
-```bash
-curl -X PATCH http://127.0.0.1:8000/projects/{project_id}/tasks/{task_id}/status \
-  -H "Content-Type: application/json" \
-  -d '{"status": "doing"}'
-```
+   * `base_url = http://127.0.0.1:8000`
+
+### Recommended Run Order (Demo)
+
+Run requests in this order:
+
+1. `GET /` (Health)
+2. `POST /projects` (stores `project_id`)
+3. `POST /projects/{{project_id}}/tasks` (stores `task_id`)
+4. Task operations (List/Get/Update/Patch/Delete)
+5. `DELETE /projects/{{project_id}}`
+
+> Note: Create-requests use Postman scripts to automatically store IDs into the environment variables.
 
 ---
 
@@ -138,97 +165,58 @@ curl -X PATCH http://127.0.0.1:8000/projects/{project_id}/tasks/{task_id}/status
 
 ### API Layer (`todo_app/api`) - Phase 3
 
-- **`main.py`** - FastAPI application factory with health check endpoint
-- **`router.py`** - Central router combining all controllers
-- **`dependencies.py`** - Dependency injection for DB sessions and services
-- **`controllers/`** - HTTP endpoint handlers
-  - `projects_controller.py` - Project CRUD endpoints
-  - `tasks_controller.py` - Task CRUD endpoints
-- **`controller_schemas/`** - Pydantic models for request/response validation
-  - `project_request_schema.py` / `project_response_schema.py`
-  - `task_request_schema.py` / `task_response_schema.py`
+* **`main.py`** - FastAPI application factory with health check endpoint
+* **`router.py`** - Central router combining all controllers
+* **`dependencies.py`** - Dependency injection for DB sessions and services
+* **`controllers/`** - HTTP endpoint handlers
+
+  * `projects_controller.py` - Project CRUD endpoints
+  * `tasks_controller.py` - Task CRUD endpoints
+* **`controller_schemas/`** - Pydantic models for request/response validation
+
+  * `project_request_schema.py` / `project_response_schema.py`
+  * `task_request_schema.py` / `task_response_schema.py`
 
 ### Domain Layer (`todo_app/models`)
-- **`Project`** - Fields: `id`, `name`, `description`, `created_at`, `tasks`
-- **`Task`** - Fields: `id`, `title`, `description`, `status`, `deadline`, `created_at`
+
+* **`Project`** - Fields: `id`, `name`, `description`, `created_at`, `tasks`
+* **`Task`** - Fields: `id`, `title`, `description`, `status`, `deadline`, `created_at`
 
 ### Persistence Layer (`todo_app/db`, `todo_app/repositories`)
-- **ORM Models**: `ProjectORM`, `TaskORM`
-- **Repositories**: `SqlAlchemyProjectRepository`, `SqlAlchemyTaskRepository`
+
+* **ORM Models**: `ProjectORM`, `TaskORM`
+* **Repositories**: `SqlAlchemyProjectRepository`, `SqlAlchemyTaskRepository`
 
 ### Services (`todo_app/services`)
-- **ProjectService** - Project business logic
-- **TaskService** - Task business logic
+
+* **ProjectService** - Project business logic
+* **TaskService** - Task business logic
 
 ### CLI Layer (`todo_app/cli`) - Deprecated
+
 > ⚠️ The CLI interface is deprecated. Please use the Web API instead.
 
 ---
 
 ## 🏗️ Project Structure
+
 ```text
 ├── todo_app/
 │   ├── api/                   # FastAPI Web API (Phase 3)
-│   │   ├── __init__.py
-│   │   ├── main.py            # FastAPI app entry point
-│   │   ├── router.py          # Central router
-│   │   ├── dependencies.py    # Dependency injection
-│   │   ├── controllers/
-│   │   │   ├── __init__.py
-│   │   │   ├── projects_controller.py
-│   │   │   └── tasks_controller.py
-│   │   └── controller_schemas/
-│   │       ├── __init__.py
-│   │       ├── project_request_schema.py
-│   │       ├── project_response_schema.py
-│   │       ├── task_request_schema.py
-│   │       └── task_response_schema.py
-│   │
 │   ├── cli/                   # CLI interface (deprecated)
-│   │   ├── __init__.py
-│   │   └── console.py
-│   │
 │   ├── commands/              # Management commands
-│   │   ├── __init__.py
-│   │   ├── autoclose_overdue.py
-│   │   └── scheduler.py
-│   │
-│   ├── config/
-│   │   ├── __init__.py
-│   │   └── settings.py
-│   │
-│   ├── db/
-│   │   ├── __init__.py
-│   │   ├── base.py
-│   │   ├── models.py
-│   │   └── session.py
-│   │
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── project.py
-│   │   └── task.py
-│   │
-│   ├── repositories/
-│   │   ├── __init__.py
-│   │   ├── in_memory_repo.py
-│   │   ├── project_repository.py
-│   │   └── task_repository.py
-│   │
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── project_service.py
-│   │   └── task_service.py
-│   │
-│   ├── exceptions/
-│   │   └── __init__.py
-│   │
-│   └── __init__.py
+│   ├── config/                # Settings
+│   ├── db/                    # SQLAlchemy + Session
+│   ├── models/                # Domain models
+│   ├── repositories/          # Repository implementations
+│   ├── services/              # Business logic
+│   └── exceptions/
+│
+├── postman/                   # Postman artifacts (Phase 4)
+│   ├── postman_collection.json
+│   └── postman_environment.json
 │
 ├── alembic/
-│   ├── env.py
-│   ├── script.py.mako
-│   └── versions/
-│
 ├── docker-compose.yml
 ├── alembic.ini
 ├── .env.example
@@ -243,11 +231,13 @@ curl -X PATCH http://127.0.0.1:8000/projects/{project_id}/tasks/{task_id}/status
 ## ⚙️ Environment & Configuration
 
 ### Create `.env` file
+
 ```bash
 cp .env.example .env
 ```
 
 Default values:
+
 ```env
 MAX_NUMBER_OF_PROJECT=10
 MAX_NUMBER_OF_TASK=100
@@ -264,12 +254,14 @@ DB_PASSWORD=todolist_password
 ## 📦 Installation
 
 ### 1️⃣ Clone the repository
+
 ```bash
 git clone https://github.com/m3hdi2gh/To-Do-List-Project.git
 cd To-Do-List-Project
 ```
 
 ### 2️⃣ Install dependencies
+
 ```bash
 poetry install
 ```
@@ -277,11 +269,13 @@ poetry install
 ---
 
 ## 🗄️ Run PostgreSQL (via Docker)
+
 ```bash
 docker compose up -d
 ```
 
 To stop and clean:
+
 ```bash
 docker compose down -v
 ```
@@ -289,6 +283,7 @@ docker compose down -v
 ---
 
 ## 🔁 Apply Database Migrations
+
 ```bash
 poetry run alembic upgrade head
 ```
@@ -298,13 +293,15 @@ poetry run alembic upgrade head
 ## ▶️ Run the Application
 
 ### Web API (Recommended)
+
 ```bash
 poetry run uvicorn todo_app.api.main:app --reload
 ```
 
-Then open: http://127.0.0.1:8000/docs
+Then open: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ### CLI (Deprecated)
+
 ```bash
 poetry run python main.py
 ```
@@ -314,6 +311,7 @@ poetry run python main.py
 ---
 
 ## 🔁 Auto-Close Overdue Tasks
+
 ```bash
 poetry run python -m todo_app.commands.autoclose_overdue
 ```
@@ -321,6 +319,7 @@ poetry run python -m todo_app.commands.autoclose_overdue
 ---
 
 ## ⏱️ Run the Scheduler
+
 ```bash
 poetry run python -m todo_app.commands.scheduler
 ```
@@ -330,6 +329,7 @@ poetry run python -m todo_app.commands.scheduler
 ## 🧪 Development Tips
 
 Reset DB:
+
 ```bash
 docker compose down -v
 docker compose up -d
@@ -340,6 +340,6 @@ poetry run alembic upgrade head
 
 ## 👤 Author
 
-**Mehdi Gholami**  
-📧 [m3hdigholami@aut.ac.ir](mailto:m3hdigholami@aut.ac.ir)  
+**Mehdi Gholami**
+📧 [m3hdigholami@aut.ac.ir](mailto:m3hdigholami@aut.ac.ir)
 🔗 [GitHub Profile](https://github.com/m3hdi2gh)
