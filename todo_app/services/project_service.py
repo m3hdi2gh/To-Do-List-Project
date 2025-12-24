@@ -11,6 +11,8 @@ class ProjectService:
         self._repo = repo
 
     def create_project(self, *, name: str, description: str = "") -> Project:
+        if self._repo.get_project_by_name(name) is not None:
+            raise ValueError("Project name must be unique.")
         projects = self._repo.list_projects()
         if len(projects) >= settings.MAX_NUMBER_OF_PROJECT:
             raise ValueError(f"Project cap exceeded ({settings.MAX_NUMBER_OF_PROJECT}).")
@@ -33,6 +35,9 @@ class ProjectService:
 
     def list_projects(self) -> List[Project]:
         return self._repo.list_projects()
+
+    def get_project(self, project_id: str) -> Optional[Project]:
+        return self._repo.get_project_by_id(project_id)
 
     def get_by_name(self, name: str) -> Optional[Project]:
         return self._repo.get_project_by_name(name)
