@@ -1,21 +1,30 @@
-# 📝 To-Do List App (Python OOP — Postgres & SQLAlchemy)
+# 📝 To-Do List App (Python OOP — FastAPI & PostgreSQL)
 
-A command-line **To-Do List application** built with:
+A **To-Do List application** built with:
 
 - **Clean Python OOP domain models** (`Project`, `Task`)
 - **Repository pattern** (in-memory + SQLAlchemy)
 - **PostgreSQL** for persistence
 - **Alembic** for database migrations
+- **FastAPI** RESTful Web API
 - A simple **scheduler** to auto-close overdue tasks
 
-This project is developed incrementally in two phases:
+This project is developed incrementally in three phases:
 
 - **Phase 1** → Pure CLI + in-memory storage  
-- **Phase 2 (current)** → Proper persistence layer with PostgreSQL, SQLAlchemy ORM, Alembic, and background scheduling.
+- **Phase 2** → Persistence layer with PostgreSQL, SQLAlchemy ORM, Alembic, and background scheduling
+- **Phase 3 (current)** → RESTful Web API with FastAPI
 
 ---
 
 ## 🚀 Main Features
+
+### 🌐 RESTful Web API (Phase 3)
+- Full CRUD operations for Projects and Tasks via HTTP endpoints
+- Interactive API documentation (Swagger UI & ReDoc)
+- Pydantic request/response validation
+- Dependency injection for services and database sessions
+- Proper HTTP status codes and error handling
 
 ### 🧩 Project Management
 - Create new projects with name and description  
@@ -36,196 +45,209 @@ This project is developed incrementally in two phases:
   - `MAX_NUMBER_OF_TASK` (default: 100)
   - Database connection values (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`)
 - Validation on text length (titles/descriptions) and task status
-- Clear error messages in the CLI
+- Clear error messages
 
-### 🗄️ Persistence & Migrations (Phase 2)
+### 🗄️ Persistence & Migrations
 - **PostgreSQL** as the main data store (via `docker-compose`)
-- **SQLAlchemy ORM** models:
-  - `ProjectORM` ↔ domain `Project`
-  - `TaskORM` ↔ domain `Task`
-- **Alembic**:
-  - Tracks schema in `alembic/versions/…`
-  - Initial migration creates `projects` and `tasks` tables
-- IDs are stored as `UUID` **strings** (length 36) in DB to match domain IDs.
+- **SQLAlchemy ORM** models
+- **Alembic** for schema migrations
+- IDs are stored as `UUID` strings (length 36)
 
-### ⏱️ Auto-Close Overdue Tasks (Phase 2)
-- Management command:
-  - `poetry run python -m todo_app.commands.autoclose_overdue`
-- Logic:
-  - Finds tasks with `deadline < today` and `status != "done"`
-  - Sets `status = "done"` and updates `closed_at` to the current time
-- Result:
-  - Keeps old overdue tasks from staying in “todo/doing” forever.
+### ⏱️ Auto-Close Overdue Tasks
+- Management command: `poetry run python -m todo_app.commands.autoclose_overdue`
+- Finds tasks with `deadline < today` and `status != "done"`
+- Sets `status = "done"` and updates `closed_at`
 
-### 🕒 Simple Scheduler (Phase 2)
-- Separate command:
-  - `poetry run python -m todo_app.commands.scheduler`
-- Uses the `schedule` library
-- In development mode, runs the auto-close job **every 15 seconds**:
-  - Useful for demo/testing during presentation
-- Can be later adjusted to run every minute/hour/day in a real deployment.
+### 🕒 Simple Scheduler
+- Command: `poetry run python -m todo_app.commands.scheduler`
+- Runs auto-close job every 15 seconds (configurable)
+
+---
+
+## 🌐 API Documentation
+
+### Running the API Server
+```bash
+poetry run uvicorn todo_app.api.main:app --reload
+```
+
+The API will be available at: `http://127.0.0.1:8000`
+
+### Interactive Documentation
+
+- **Swagger UI**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+
+### API Endpoints
+
+#### Health Check
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API health status |
+
+#### Projects
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/projects` | List all projects |
+| POST | `/projects` | Create a new project |
+| GET | `/projects/{project_id}` | Get a project by ID |
+| PUT | `/projects/{project_id}` | Update a project |
+| DELETE | `/projects/{project_id}` | Delete a project |
+
+#### Tasks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/projects/{project_id}/tasks` | List all tasks in a project |
+| POST | `/projects/{project_id}/tasks` | Create a new task |
+| GET | `/projects/{project_id}/tasks/{task_id}` | Get a task by ID |
+| PUT | `/projects/{project_id}/tasks/{task_id}` | Update a task |
+| PATCH | `/projects/{project_id}/tasks/{task_id}/status` | Update task status only |
+| DELETE | `/projects/{project_id}/tasks/{task_id}` | Delete a task |
+
+### API Usage Examples
+
+#### Create a Project
+```bash
+curl -X POST http://127.0.0.1:8000/projects \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Project", "description": "Project description"}'
+```
+
+#### List Projects
+```bash
+curl http://127.0.0.1:8000/projects
+```
+
+#### Create a Task
+```bash
+curl -X POST http://127.0.0.1:8000/projects/{project_id}/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "My Task", "description": "Task description", "status": "todo", "deadline": "2025-12-31"}'
+```
+
+#### Update Task Status
+```bash
+curl -X PATCH http://127.0.0.1:8000/projects/{project_id}/tasks/{task_id}/status \
+  -H "Content-Type: application/json" \
+  -d '{"status": "doing"}'
+```
 
 ---
 
 ## 🧠 Architecture Overview
 
+### API Layer (`todo_app/api`) - Phase 3
+
+- **`main.py`** - FastAPI application factory with health check endpoint
+- **`router.py`** - Central router combining all controllers
+- **`dependencies.py`** - Dependency injection for DB sessions and services
+- **`controllers/`** - HTTP endpoint handlers
+  - `projects_controller.py` - Project CRUD endpoints
+  - `tasks_controller.py` - Task CRUD endpoints
+- **`controller_schemas/`** - Pydantic models for request/response validation
+  - `project_request_schema.py` / `project_response_schema.py`
+  - `task_request_schema.py` / `task_response_schema.py`
+
 ### Domain Layer (`todo_app/models`)
-- **`Project`**
-  - Fields: `id`, `name`, `description`, `created_at`, `tasks`
-  - Validation: max word count for name/description
-  - Methods: `add_task`, `remove_task`, `edit`
-- **`Task`**
-  - Fields: `id`, `title`, `description`, `status`, `deadline`, `created_at`
-  - Validation: status must be one of `todo | doing | done`, word limits
-  - Methods: `change_status`, `edit`
-- **Helpers**
-  - `parse_deadline(raw: str | None) -> date | None`
+- **`Project`** - Fields: `id`, `name`, `description`, `created_at`, `tasks`
+- **`Task`** - Fields: `id`, `title`, `description`, `status`, `deadline`, `created_at`
 
-### Persistence Layer
-
-#### ORM Models (`todo_app/db/models.py`)
-- `ProjectORM`  
-  - `id: String(36)` (UUID string, PK)  
-  - `name: String(100)` (unique, not null)  
-  - `description: Text`  
-  - `created_at: DateTime(timezone=True)`  
-  - Relationship: `tasks` → list of `TaskORM` (cascade delete)
-
-- `TaskORM`  
-  - `id: String(36)` (UUID string, PK)  
-  - `project_id: String(36)` (FK → `projects.id`, `ondelete="CASCADE"`)  
-  - `title: String(200)`  
-  - `description: Text`  
-  - `status: Enum(TaskStatusEnum)` where values are `"todo" | "doing" | "done"`  
-  - `deadline: Date | None`  
-  - `created_at: DateTime(timezone=True)`  
-  - `closed_at: DateTime(timezone=True) | None`  
-  - Relationship: `project` → `ProjectORM`
-
-- `TaskStatusEnum(str, enum.Enum)`  
-  - Members: `TODO = "todo"`, `DOING = "doing"`, `DONE = "done"`
-
-#### Repositories (`todo_app/repositories`)
-- **Interfaces**
-  - `ProjectRepository`
-    - `add_project`, `get_project_by_id`, `get_project_by_name`,
-      `list_projects`, `update_project`, `delete_project`
-  - `TaskRepository`
-    - `add_task`, `get_task`, `list_tasks_of_project`,
-      `update_task`, `change_task_status`, `delete_task`
-
-- **In-memory implementation**  
-  - `InMemoryRepo(ProjectRepository, TaskRepository)`  
-  - Uses Python dicts for IDs and name indexing  
-  - Cascade deletes tasks when a project is removed  
-  - Kept for potential tests / alternative runtime modes
-
-- **SQLAlchemy implementations**
-  - `SqlAlchemyProjectRepository(Session)`
-    - Works with `ProjectORM`
-    - Maps between domain `Project` and `ProjectORM` via `_project_from_orm`
-  - `SqlAlchemyTaskRepository(Session)`
-    - Works with `TaskORM`
-    - Converts `status` to/from `TaskStatusEnum`
-    - Maps between domain `Task` and `TaskORM` via `_task_from_orm`
+### Persistence Layer (`todo_app/db`, `todo_app/repositories`)
+- **ORM Models**: `ProjectORM`, `TaskORM`
+- **Repositories**: `SqlAlchemyProjectRepository`, `SqlAlchemyTaskRepository`
 
 ### Services (`todo_app/services`)
-- **ProjectService**
-  - Depends on `ProjectRepository`
-  - Enforces `MAX_NUMBER_OF_PROJECT`
-  - Provides methods to create/edit/delete/list projects
+- **ProjectService** - Project business logic
+- **TaskService** - Task business logic
 
-- **TaskService**
-  - Depends on both `ProjectRepository` & `TaskRepository`
-  - Enforces global `MAX_NUMBER_OF_TASK`
-  - Validates project existence before adding tasks
-  - Uses `parse_deadline` for deadline parsing
-  - Provides methods to add/edit/delete/change status/list tasks
-
-### CLI Layer (`todo_app/cli/console.py`)
-- Uses **SQLAlchemy repositories** by default:
-  - Creates `SessionLocal()`
-  - Instantiates `SqlAlchemyProjectRepository` & `SqlAlchemyTaskRepository`
-  - Injects them into `ProjectService` & `TaskService`
-- Provides interactive menu with options 1–9 + exit
-- Handles user input, calls services, and prints results.
+### CLI Layer (`todo_app/cli`) - Deprecated
+> ⚠️ The CLI interface is deprecated. Please use the Web API instead.
 
 ---
 
-## 🏗️ Updated Project Structure
-
+## 🏗️ Project Structure
 ```text
 ├── todo_app/
-│   ├── cli/
-│   │   ├── __init__.py        # Exposes run_cli
-│   │   └── console.py         # Interactive CLI implementation
-│   │
-│   ├── commands/              # Management commands (Phase 2)
+│   ├── api/                   # FastAPI Web API (Phase 3)
 │   │   ├── __init__.py
-│   │   ├── autoclose_overdue.py  # Auto-close overdue tasks once
-│   │   └── scheduler.py          # Runs autoclose job periodically
+│   │   ├── main.py            # FastAPI app entry point
+│   │   ├── router.py          # Central router
+│   │   ├── dependencies.py    # Dependency injection
+│   │   ├── controllers/
+│   │   │   ├── __init__.py
+│   │   │   ├── projects_controller.py
+│   │   │   └── tasks_controller.py
+│   │   └── controller_schemas/
+│   │       ├── __init__.py
+│   │       ├── project_request_schema.py
+│   │       ├── project_response_schema.py
+│   │       ├── task_request_schema.py
+│   │       └── task_response_schema.py
+│   │
+│   ├── cli/                   # CLI interface (deprecated)
+│   │   ├── __init__.py
+│   │   └── console.py
+│   │
+│   ├── commands/              # Management commands
+│   │   ├── __init__.py
+│   │   ├── autoclose_overdue.py
+│   │   └── scheduler.py
 │   │
 │   ├── config/
-│   │   ├── __init__.py        # Exposes Settings instance
-│   │   └── settings.py        # Loads environment variables (.env)
+│   │   ├── __init__.py
+│   │   └── settings.py
 │   │
 │   ├── db/
 │   │   ├── __init__.py
-│   │   ├── base.py            # SQLAlchemy Base
-│   │   ├── models.py          # ProjectORM, TaskORM, TaskStatusEnum
-│   │   └── session.py         # Engine + SessionLocal
+│   │   ├── base.py
+│   │   ├── models.py
+│   │   └── session.py
 │   │
-│   ├── models/                # Domain entities (Phase 1 core)
-│   │   ├── __init__.py        # Exports Project, Task, TaskStatus, parse_deadline
-│   │   ├── project.py         # Project entity
-│   │   └── task.py            # Task entity
-│   │
-│   ├── repositories/          # Repository interfaces & implementations
+│   ├── models/
 │   │   ├── __init__.py
-│   │   ├── in_memory_repo.py           # In-memory Project+Task repo
-│   │   ├── project_repository.py       # ProjectRepository + SQLAlchemy impl
-│   │   └── task_repository.py          # TaskRepository + SQLAlchemy impl
+│   │   ├── project.py
+│   │   └── task.py
+│   │
+│   ├── repositories/
+│   │   ├── __init__.py
+│   │   ├── in_memory_repo.py
+│   │   ├── project_repository.py
+│   │   └── task_repository.py
 │   │
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── project_service.py  # Project business logic
-│   │   └── task_service.py     # Task business logic
+│   │   ├── project_service.py
+│   │   └── task_service.py
 │   │
 │   ├── exceptions/
-│   │   └── __init__.py         # (Reserved for custom exceptions)
+│   │   └── __init__.py
 │   │
-│   └── __init__.py             # Root package docstring
+│   └── __init__.py
 │
 ├── alembic/
-│   ├── README
-│   ├── env.py                  # Alembic environment config
-│   ├── script.py.mako          # Template for new migrations
+│   ├── env.py
+│   ├── script.py.mako
 │   └── versions/
-│       └── e0372bb1cbb6_create_projects_and_tasks_tables.py
 │
-├── docker-compose.yml          # PostgreSQL service for development
-├── alembic.ini                 # Alembic configuration
-├── .env.example                # Example env vars for the project
+├── docker-compose.yml
+├── alembic.ini
+├── .env.example
 ├── .gitignore
-├── pyproject.toml              # Poetry project & dependencies
-├── README.md                   # This file
-└── main.py                     # Entry point for CLI (run_cli)
-````
+├── pyproject.toml
+├── README.md
+└── main.py
+```
 
 ---
 
 ## ⚙️ Environment & Configuration
 
-### 1️⃣ Create `.env` file
-
-Copy `.env.example`:
-
+### Create `.env` file
 ```bash
 cp .env.example .env
 ```
 
-Default values (matching `docker-compose.yml`):
-
+Default values:
 ```env
 MAX_NUMBER_OF_PROJECT=10
 MAX_NUMBER_OF_TASK=100
@@ -237,21 +259,17 @@ DB_USER=todolist_user
 DB_PASSWORD=todolist_password
 ```
 
-You can override these in `.env` without changing code.
-
 ---
 
-## 📦 Installation (with Poetry)
+## 📦 Installation
 
 ### 1️⃣ Clone the repository
-
 ```bash
 git clone https://github.com/m3hdi2gh/To-Do-List-Project.git
 cd To-Do-List-Project
 ```
 
 ### 2️⃣ Install dependencies
-
 ```bash
 poetry install
 ```
@@ -259,143 +277,69 @@ poetry install
 ---
 
 ## 🗄️ Run PostgreSQL (via Docker)
-
-From project root:
-
 ```bash
 docker compose up -d
 ```
 
-This will start a `postgres:16` container with:
-
-* DB: `todolist`
-* User: `todolist_user`
-* Password: `todolist_password`
-* Port: `5432`
-
-To stop and clean everything (container + volume):
-
+To stop and clean:
 ```bash
 docker compose down -v
 ```
 
 ---
 
-## 🔁 Apply Database Migrations (Alembic)
-
-After the DB is up, run:
-
+## 🔁 Apply Database Migrations
 ```bash
 poetry run alembic upgrade head
 ```
 
-This will create the `projects` and `tasks` tables and the `alembic_version` table.
-
-You can verify tables exist:
-
-```bash
-poetry run python -c "from sqlalchemy import inspect; from todo_app.db.session import engine; print(inspect(engine).get_table_names())"
-# Expected: ['alembic_version', 'projects', 'tasks']
-```
-
 ---
 
-## ▶️ Run the CLI Application
+## ▶️ Run the Application
 
-Use Poetry to run the CLI app:
+### Web API (Recommended)
+```bash
+poetry run uvicorn todo_app.api.main:app --reload
+```
 
+Then open: http://127.0.0.1:8000/docs
+
+### CLI (Deprecated)
 ```bash
 poetry run python main.py
 ```
 
-You should see:
-
-```text
-==== To-Do CLI ====
-1) Create project
-2) Edit project
-3) Delete project
-4) List projects
-5) Add task to project
-6) Edit task
-7) Change task status
-8) Delete task
-9) List tasks of a project
-0) Exit
-```
-
-All data is now stored in PostgreSQL via SQLAlchemy repositories.
+> ⚠️ The CLI is deprecated. Please use the Web API.
 
 ---
 
 ## 🔁 Auto-Close Overdue Tasks
-
-### Run as a one-off command
-
-To immediately close all overdue tasks:
-
 ```bash
 poetry run python -m todo_app.commands.autoclose_overdue
 ```
 
-Output example:
-
-```text
-Auto-closed 3 overdue tasks.
-```
-
-Then you can re-run the CLI and verify that those tasks now have `status = done` and `closed_at` set.
-
 ---
 
-## ⏱️ Run the Scheduler (Dev / Demo)
-
-For development or during a presentation, you can run the scheduler that calls the auto-close job every **15 seconds**:
-
+## ⏱️ Run the Scheduler
 ```bash
 poetry run python -m todo_app.commands.scheduler
 ```
-
-Expected output:
-
-```text
-[scheduler] Started. Running autoclose job every 15 seconds. Press Ctrl+C to stop.
-[scheduler] Auto-closed 2 overdue tasks.
-[scheduler] Auto-closed 0 overdue tasks.
-...
-```
-
-* While this runs, you can keep the CLI open in another terminal and observe that overdue tasks are automatically moved to `done`.
-* Press `Ctrl + C` to stop the scheduler.
 
 ---
 
 ## 🧪 Development Tips
 
-* To reset DB completely during development:
-
-  ```bash
-  docker compose down -v
-  docker compose up -d
-  poetry run alembic upgrade head
-  ```
-
-* To inspect current tables or try short snippets, you can open a Python shell inside Poetry:
-
-  ```bash
-  poetry run python
-  >>> from todo_app.db.session import SessionLocal
-  >>> from todo_app.db.models import ProjectORM
-  >>> session = SessionLocal()
-  >>> session.query(ProjectORM).all()
-  ```
+Reset DB:
+```bash
+docker compose down -v
+docker compose up -d
+poetry run alembic upgrade head
+```
 
 ---
 
 ## 👤 Author
 
-**Mehdi Gholami**
-📧 [m3hdigholami@aut.ac.ir](mailto:m3hdigholami@aut.ac.ir)
+**Mehdi Gholami**  
+📧 [m3hdigholami@aut.ac.ir](mailto:m3hdigholami@aut.ac.ir)  
 🔗 [GitHub Profile](https://github.com/m3hdi2gh)
-
----
